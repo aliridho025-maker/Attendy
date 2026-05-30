@@ -3,7 +3,7 @@ import {
   Clock, MapPin, Camera, CalendarDays, CheckCircle2, XCircle, LogIn, LogOut,
   User, FileText, Home, History, RefreshCw, ShieldCheck, Mail, Lock,
   Plane, Stethoscope, Briefcase, Hourglass, AlertTriangle, X,
-  Image as ImageIcon, Users, ClipboardList, Pencil, Trash2, Plus, Search, ScanFace
+  Image as ImageIcon, Users, ClipboardList, Pencil, Trash2, Plus, Search, ScanFace, Fingerprint, Timer
 } from "lucide-react";
 import * as blazeface from "@tensorflow-models/blazeface";
 import "@tensorflow/tfjs";
@@ -34,6 +34,15 @@ const fmtTanggalPendek = (iso) =>
 const isTerlambat = (d) => fmtJam(d) > JAM_MASUK;
 const initials = (nama) => (nama || "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 const salam = (h) => (h >= 5 && h < 11) ? "Selamat pagi" : (h >= 11 && h < 15) ? "Selamat siang" : (h >= 15 && h < 18) ? "Selamat sore" : "Selamat malam";
+function jamKerja(masukJam, pulangJam, now) {
+  if (!masukJam) return "--:--";
+  const [mh, mm] = masukJam.split(":").map(Number);
+  let end;
+  if (pulangJam) { const [ph, pm] = pulangJam.split(":").map(Number); end = ph * 60 + pm; }
+  else { end = now.getHours() * 60 + now.getMinutes(); }
+  let diff = end - (mh * 60 + mm); if (diff < 0) diff += 1440;
+  return `${pad(Math.floor(diff / 60))}:${pad(diff % 60)}`;
+}
 
 /* ---------- map baris DB -> bentuk komponen ---------- */
 const mapAtt = (r) => ({
@@ -308,19 +317,14 @@ function Dashboard({ profile, onLogout }) {
   return (
     <>
       <header className="hdr">
-        <div className="hdr-row">
-          <div className="brand">Attend<span className="dot">y</span></div>
-          <div className="hdr-right">
-            <span className="role-badge">{role === "admin" ? <><ShieldCheck size={12} /> Admin</> : <><User size={12} /> Karyawan</>}</span>
-            <button className="logout-btn" onClick={onLogout} title="Keluar"><LogOut size={16} /></button>
-          </div>
+        <div className="brand-wrap">
+          <div className="logo-mark"><Fingerprint size={20} /></div>
+          <div className="brand-txt"><b>Attendy</b><span>Attendance</span></div>
         </div>
-        <div className="hdr-id">
-          <div className="ava">{initials(profile.nama)}</div>
-          <div>
-            <div className="hdr-nama">{profile.nama}</div>
-            <div className="hdr-sub">{[profile.nip, profile.divisi].filter(Boolean).join(" · ") || "—"}</div>
-          </div>
+        <div className="hdr-right">
+          <span className="role-pill">{role === "admin" ? <><ShieldCheck size={12} /> Admin</> : <><User size={12} /> Karyawan</>}</span>
+          <div className="avatar">{initials(profile.nama)}</div>
+          <button className="logout-btn" onClick={onLogout} title="Keluar"><LogOut size={16} /></button>
         </div>
       </header>
 
@@ -369,32 +373,37 @@ function Beranda({ now, nama, absen, onAbsen }) {
   const sudahMasuk = !!absen;
   const sudahPulang = !!(absen && absen.pulang);
   const namaDepan = (nama || "").split(" ")[0] || "Karyawan";
+  let h = now.getHours(); const ap = h >= 12 ? "PM" : "AM"; let h12 = h % 12; if (h12 === 0) h12 = 12;
+  const kerja = jamKerja(absen?.masuk?.jam, absen?.pulang?.jam, now);
   return (
-    <div className="page">
-      <div className="greet">{salam(now.getHours())},<span className="greet-nama">{namaDepan} 👋</span></div>
-      <div className="clock-card">
-        <div className="clock-time">{pad(now.getHours())}:{pad(now.getMinutes())}<span className="sec">:{pad(now.getSeconds())}</span></div>
-        <div className="clock-date">{fmtTanggal(now.toISOString())}</div>
+    <div className="page home">
+      <div className="greet-line">{salam(now.getHours())}, <b>{namaDepan} 👋</b></div>
+      <div className="home-clock">
+        <div className="hc-time">{h12}:{pad(now.getMinutes())} <span className="hc-ap">{ap}</span></div>
+        <div className="hc-date">{fmtTanggal(now.toISOString())}</div>
       </div>
-      <div className="status-card">
-        <div className="status-head"><Clock size={15} /> Status Hari Ini</div>
-        <div className="status-grid">
-          <div className="st-cell">
-            <div className="st-lbl">Masuk</div>
-            <div className={`st-val ${sudahMasuk ? "" : "kosong"}`}>{sudahMasuk ? absen.masuk.jam : "--:--"}</div>
-            {sudahMasuk && absen.terlambat && <span className="badge late"><AlertTriangle size={11} /> Terlambat</span>}
-            {sudahMasuk && !absen.terlambat && <span className="badge ok"><CheckCircle2 size={11} /> Tepat waktu</span>}
-          </div>
-          <div className="st-div" />
-          <div className="st-cell">
-            <div className="st-lbl">Pulang</div>
-            <div className={`st-val ${sudahPulang ? "" : "kosong"}`}>{sudahPulang ? absen.pulang.jam : "--:--"}</div>
-          </div>
-        </div>
+
+      {!sudahMasuk && (
+        <button className="hero-btn in" onClick={() => onAbsen("masuk")}>
+          <div className="hero-ring"><Fingerprint size={30} /></div>
+          <div className="hero-label">Clock In</div>
+        </button>
+      )}
+      {sudahMasuk && !sudahPulang && (
+        <button className="hero-btn out" onClick={() => onAbsen("pulang")}>
+          <div className="hero-ring"><Fingerprint size={30} /></div>
+          <div className="hero-label">Clock Out</div>
+        </button>
+      )}
+      {sudahPulang && <div className="hero-done"><CheckCircle2 size={26} /><span>Selesai untuk hari ini</span></div>}
+
+      <div className="stat3">
+        <div className="s3"><div className="s3-ic"><LogIn size={19} /></div><div className="s3-val">{absen?.masuk?.jam || "--:--"}</div><div className="s3-lbl">Clock In</div></div>
+        <div className="s3"><div className="s3-ic"><LogOut size={19} /></div><div className="s3-val">{absen?.pulang?.jam || "--:--"}</div><div className="s3-lbl">Clock Out</div></div>
+        <div className="s3"><div className="s3-ic"><Timer size={19} /></div><div className="s3-val">{kerja}</div><div className="s3-lbl">Working Hrs</div></div>
       </div>
-      {!sudahMasuk && <button className="big-btn masuk" onClick={() => onAbsen("masuk")}><LogIn size={22} /> Absen Masuk</button>}
-      {sudahMasuk && !sudahPulang && <button className="big-btn pulang" onClick={() => onAbsen("pulang")}><LogOut size={22} /> Absen Pulang</button>}
-      {sudahPulang && <div className="done-card"><CheckCircle2 size={20} /> Absensi hari ini selesai. Sampai jumpa besok!</div>}
+
+      {sudahMasuk && absen.terlambat && <div className="late-note"><AlertTriangle size={13} /> Tercatat terlambat (lewat {JAM_MASUK})</div>}
       <div className="hint"><ScanFace size={12} /> Wajib selfie wajah & lokasi aktif saat absen.</div>
     </div>
   );
@@ -817,31 +826,32 @@ function Styles() {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root{
       --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","SF Pro Icons","Helvetica Neue",Helvetica,Arial,sans-serif;
-      --bg:#ECE9E1; --card:#FFFFFF; --ink:#172019; --muted:#6B776F; --line:#E6E2D7;
-      --green:#1F6F54; --green-d:#16503D; --green-l:#E7F1ED;
-      --amber:#C98A2B; --amber-l:#FBF1DF; --red:#BD473B; --red-l:#FBEAE7;
+      --bg:#F5F6F8; --card:#FFFFFF; --ink:#1A1D21; --ink2:#3A4046; --muted:#959BA5; --line:#ECEEF1;
+      --green:#10A88F; --green-d:#0C8A75; --green-l:#E4F5F1;
+      --amber:#D08A1E; --amber-l:#FBF1DE; --red:#E1493D; --red-l:#FCEBE9;
     }
     .stage{ font-family:var(--font); color:var(--ink); min-height:100dvh; display:flex; -webkit-font-smoothing:antialiased; }
     .device{ width:100%; min-height:100dvh; background:var(--bg); }
     .screen{ width:100%; min-height:100dvh; background:var(--bg); display:flex; flex-direction:column; position:relative; overflow:hidden; }
     @media (min-width:600px){
       .stage{ justify-content:center; align-items:flex-start; padding:18px 10px 40px;
-        background:radial-gradient(circle at 20% 0%, #DDE6E0 0, transparent 45%), radial-gradient(circle at 90% 100%, #E8E0D0 0, transparent 40%), var(--bg); }
-      .device{ width:418px; min-height:auto; height:812px; background:#0c130f; border-radius:46px; padding:11px; box-shadow:0 32px 60px -20px rgba(20,40,30,.45), inset 0 0 0 2px #28332c; }
+        background:radial-gradient(circle at 15% 0%, #E7F1FB 0, transparent 42%), radial-gradient(circle at 92% 96%, #EDE9FB 0, transparent 38%), #EDEFF2; }
+      .device{ width:418px; min-height:auto; height:812px; background:#1c2126; border-radius:46px; padding:11px; box-shadow:0 32px 60px -20px rgba(30,40,55,.4), inset 0 0 0 2px #2c333b; }
       .screen{ min-height:auto; height:100%; border-radius:36px; }
     }
-    .hdr{ background:linear-gradient(160deg,var(--green) 0%, var(--green-d) 100%); color:#fff; padding:max(20px,env(safe-area-inset-top)) 20px 18px; border-radius:0 0 26px 26px; }
-    @media (min-width:600px){ .hdr{ padding:20px 20px 18px; } }
-    .hdr-row{ display:flex; justify-content:space-between; align-items:center; }
-    .brand{ font-weight:800; font-size:23px; letter-spacing:-.6px; }
-    .brand .dot{ color:#9BE7C4; }
+    .screen::before{ content:""; position:absolute; top:-60px; right:-40px; width:200px; height:200px; border-radius:50%;
+      background:radial-gradient(circle, rgba(16,168,143,.10), transparent 70%); pointer-events:none; }
+    .hdr{ position:relative; z-index:1; background:var(--card); color:var(--ink); padding:max(16px,env(safe-area-inset-top)) 18px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+    @media (min-width:600px){ .hdr{ padding:18px 18px 16px; } }
+    .brand-wrap{ display:flex; align-items:center; gap:10px; }
+    .logo-mark{ width:38px; height:38px; border-radius:12px; background:var(--green-l); color:var(--green-d); display:grid; place-items:center; }
+    .brand-txt b{ display:block; font-size:18px; font-weight:800; letter-spacing:-.4px; line-height:1.05; }
+    .brand-txt span{ font-size:9.5px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); }
     .hdr-right{ display:flex; align-items:center; gap:8px; }
-    .role-badge{ display:flex; align-items:center; gap:5px; background:rgba(255,255,255,.16); padding:6px 11px; border-radius:30px; font-size:12px; font-weight:600; }
-    .logout-btn{ background:rgba(255,255,255,.16); border:none; color:#fff; width:32px; height:32px; border-radius:30px; display:grid; place-items:center; cursor:pointer; }
-    .logout-btn:hover{ background:rgba(255,255,255,.28); }
-    .hdr-id{ display:flex; align-items:center; gap:12px; margin-top:16px; }
-    .ava{ width:42px; height:42px; border-radius:14px; background:rgba(255,255,255,.2); display:grid; place-items:center; font-weight:700; font-size:15px; }
-    .hdr-nama{ font-weight:700; font-size:15.5px; } .hdr-sub{ font-size:12px; opacity:.8; }
+    .role-pill{ display:flex; align-items:center; gap:4px; background:var(--green-l); color:var(--green-d); padding:5px 10px; border-radius:30px; font-size:11px; font-weight:600; }
+    .avatar{ width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,var(--green),#3B82F6); color:#fff; display:grid; place-items:center; font-weight:700; font-size:13px; }
+    .logout-btn{ background:var(--bg); border:1px solid var(--line); color:var(--muted); width:34px; height:34px; border-radius:11px; display:grid; place-items:center; cursor:pointer; }
+    .logout-btn:hover{ color:var(--red); background:var(--red-l); border-color:transparent; }
 
     .err-banner{ display:flex; align-items:center; gap:8px; background:var(--red-l); color:var(--red); padding:10px 16px; font-size:12.5px; font-weight:600; }
     .err-banner button{ margin-left:auto; background:none; border:none; color:var(--red); cursor:pointer; display:grid; place-items:center; }
@@ -853,22 +863,30 @@ function Styles() {
     .page-head{ display:flex; justify-content:space-between; align-items:center; }
     .add-btn{ display:flex; align-items:center; gap:4px; background:var(--green); color:#fff; border:none; padding:8px 14px; border-radius:20px; font-weight:600; font-size:13px; cursor:pointer; font-family:inherit; }
 
-    .greet{ font-size:15px; color:var(--muted); font-weight:500; margin-bottom:-4px; }
-    .greet-nama{ display:block; font-size:21px; font-weight:700; color:var(--ink); letter-spacing:-.3px; margin-top:2px; }
+    .greet-line{ font-size:14.5px; color:var(--muted); font-weight:500; }
+    .greet-line b{ color:var(--ink); font-weight:700; }
+    .home{ gap:16px; }
+    .home-clock{ text-align:center; padding:10px 0 2px; }
+    .hc-time{ font-size:52px; font-weight:800; letter-spacing:-2px; line-height:1; color:var(--ink); }
+    .hc-ap{ font-size:22px; font-weight:600; color:var(--muted); letter-spacing:0; }
+    .hc-date{ font-size:14px; font-weight:700; color:var(--ink2); margin-top:8px; }
 
-    .clock-card{ text-align:center; padding:8px 0 4px; }
-    .clock-time{ font-size:58px; font-weight:800; letter-spacing:-2px; line-height:1; }
-    .clock-time .sec{ font-size:26px; color:var(--muted); font-weight:600; }
-    .clock-date{ color:var(--muted); font-size:13.5px; margin-top:8px; font-weight:500; }
+    .hero-btn{ width:208px; height:208px; align-self:center; border:none; border-radius:42px; color:#fff; cursor:pointer;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; margin:6px auto 2px; font-family:inherit; transition:transform .15s; }
+    .hero-btn:active{ transform:scale(.97); }
+    .hero-btn.in{ background:linear-gradient(155deg,#1EC8AC 0%,#3B82F6 100%); box-shadow:0 24px 46px -16px rgba(30,150,200,.7); }
+    .hero-btn.out{ background:linear-gradient(155deg,#FB5C7D 0%,#7C5CFF 100%); box-shadow:0 24px 46px -16px rgba(150,80,210,.6); }
+    .hero-ring{ width:68px; height:68px; border-radius:50%; border:2.5px solid rgba(255,255,255,.75); display:grid; place-items:center; }
+    .hero-label{ font-size:18px; font-weight:700; letter-spacing:-.2px; }
+    .hero-done{ align-self:center; width:208px; height:208px; border-radius:42px; background:var(--green-l); color:var(--green-d);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; font-weight:700; font-size:15px; text-align:center; padding:20px; margin:6px auto 2px; }
 
-    .status-card{ background:var(--card); border:1px solid var(--line); border-radius:20px; padding:16px; }
-    .status-head{ display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--muted); margin-bottom:12px; }
-    .status-grid{ display:flex; align-items:center; }
-    .st-cell{ flex:1; text-align:center; display:flex; flex-direction:column; align-items:center; gap:6px; }
-    .st-lbl{ font-size:12px; color:var(--muted); }
-    .st-val{ font-size:28px; font-weight:700; letter-spacing:-.5px; }
-    .st-val.kosong{ color:#C7CEC8; }
-    .st-div{ width:1px; align-self:stretch; background:var(--line); margin:0 6px; }
+    .stat3{ display:flex; gap:8px; }
+    .s3{ flex:1; display:flex; flex-direction:column; align-items:center; gap:7px; }
+    .s3-ic{ width:48px; height:48px; border-radius:50%; border:1.5px solid var(--line); background:var(--card); color:var(--green-d); display:grid; place-items:center; }
+    .s3-val{ font-size:16px; font-weight:800; color:var(--ink); letter-spacing:-.3px; }
+    .s3-lbl{ font-size:11px; color:var(--muted); font-weight:500; }
+    .late-note{ display:flex; align-items:center; justify-content:center; gap:7px; background:var(--amber-l); color:var(--amber); padding:9px; border-radius:12px; font-size:12px; font-weight:600; }
 
     .badge{ display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; white-space:nowrap; }
     .badge.ok{ background:var(--green-l); color:var(--green-d); }
