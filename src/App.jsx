@@ -207,6 +207,7 @@ function Dashboard({ profile, onLogout }) {
   const [showCuti, setShowCuti] = useState(false);
   const [attModal, setAttModal] = useState(null);
   const [profModal, setProfModal] = useState(null);
+  const [detailRec, setDetailRec] = useState(null);
 
   const role = profile.role === "admin" ? "admin" : "karyawan";
 
@@ -333,7 +334,7 @@ function Dashboard({ profile, onLogout }) {
             {role === "karyawan" && tab === "cuti" && <CutiKaryawan list={leaves.filter((l) => l.userId === profile.id)} onAjukan={() => setShowCuti(true)} />}
 
             {role === "admin" && tab === "beranda" && (
-              <AdminMonitoring list={attendance} onAdd={() => setAttModal("new")} onEdit={(r) => setAttModal(r)} onDelete={hapusAbsen} />
+              <AdminMonitoring list={attendance} onAdd={() => setAttModal("new")} onEdit={(r) => setAttModal(r)} onDelete={hapusAbsen} onView={(r) => setDetailRec(r)} />
             )}
             {role === "admin" && tab === "karyawan" && (
               <AdminKaryawan profiles={profiles} attendance={attendance} onEdit={(p) => setProfModal(p)} />
@@ -358,6 +359,7 @@ function Dashboard({ profile, onLogout }) {
       {showCuti && <CutiForm onClose={() => setShowCuti(false)} onSubmit={ajukanCuti} />}
       {attModal && <AbsenModal rec={attModal === "new" ? null : attModal} profiles={profiles} onClose={() => setAttModal(null)} onSave={simpanAbsen} />}
       {profModal && <ProfilModal prof={profModal} onClose={() => setProfModal(null)} onSave={simpanProfil} />}
+      {detailRec && <DetailAbsen rec={detailRec} onClose={() => setDetailRec(null)} />}
     </>
   );
 }
@@ -609,7 +611,7 @@ function CutiForm({ onClose, onSubmit }) {
 }
 
 /* ---------------- ADMIN: MONITORING ---------------- */
-function AdminMonitoring({ list, onAdd, onEdit, onDelete }) {
+function AdminMonitoring({ list, onAdd, onEdit, onDelete, onView }) {
   const [tgl, setTgl] = useState(todayKey());
   const [q, setQ] = useState("");
   const dateRecs = list.filter((a) => a.tanggal === tgl);
@@ -629,14 +631,15 @@ function AdminMonitoring({ list, onAdd, onEdit, onDelete }) {
       <div className="search-box"><Search size={15} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nama karyawan…" /></div>
       {!tampil.length ? <Empty icon={ClipboardList} teks="Tidak ada data pada tanggal ini." /> : tampil.map((a) => (
         <div key={a.id} className="mon-card">
-          <div className="mon-main">
-            <div className="adm-ava">{initials(a.nama)}</div>
+          <button className="mon-main tap" onClick={() => onView(a)}>
+            {a.foto ? <img src={a.foto} alt="" className="mon-foto" /> : <div className="adm-ava">{initials(a.nama)}</div>}
             <div className="adm-info">
               <div className="adm-nama">{a.nama}</div>
               <div className="adm-sub">{a.divisi || "—"} · masuk {a.masuk?.jam || "--:--"}{a.pulang ? ` · pulang ${a.pulang.jam}` : ""}</div>
+              {(a.masuk?.lat != null) && <div className="adm-loc"><MapPin size={10} /> {a.masuk.lat.toFixed(4)}, {a.masuk.lng.toFixed(4)}</div>}
             </div>
             {a.terlambat ? <span className="badge late">Telat</span> : <span className="badge ok">Tepat</span>}
-          </div>
+          </button>
           <div className="mon-actions">
             <button className="icon-btn" onClick={() => onEdit(a)} title="Edit"><Pencil size={15} /></button>
             <button className="icon-btn danger" onClick={() => onDelete(a.id)} title="Hapus"><Trash2 size={15} /></button>
@@ -647,6 +650,40 @@ function AdminMonitoring({ list, onAdd, onEdit, onDelete }) {
   );
 }
 function Stat({ n, l, c }) { return <div className={`stat ${c}`}><div className="stat-n">{n}</div><div className="stat-l">{l}</div></div>; }
+
+/* ---------------- DETAIL ABSENSI (foto + lokasi) ---------------- */
+function DetailAbsen({ rec, onClose }) {
+  const mapsUrl = (p) => `https://www.google.com/maps?q=${p.lat},${p.lng}`;
+  const LocBlock = ({ label, jam, loc }) => (
+    <div className="det-sesi">
+      <div className="det-sesi-head"><span className="det-lbl">{label}</span><b>{jam || "--:--"}</b></div>
+      {loc && loc.lat != null ? (
+        <a className="maps-btn" href={mapsUrl(loc)} target="_blank" rel="noreferrer">
+          <MapPin size={14} /> {loc.lat.toFixed(5)}, {loc.lng.toFixed(5)} · Buka di Maps
+        </a>
+      ) : <div className="det-noloc"><MapPin size={13} /> Lokasi tidak tersedia</div>}
+    </div>
+  );
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-top"><h3>Detail Absensi</h3><button className="x" onClick={onClose}><X size={18} /></button></div>
+        <div className="det-id">
+          <div className="adm-nama">{rec.nama}</div>
+          <div className="adm-sub">{[rec.nip, rec.divisi].filter(Boolean).join(" · ") || "—"} · {fmtTanggalPendek(rec.tanggal)}</div>
+        </div>
+        {rec.foto
+          ? <img src={rec.foto} alt="selfie" className="det-foto" />
+          : <div className="det-nofoto"><ImageIcon size={28} /><span>Tanpa foto (input manual)</span></div>}
+        <div className="det-status">
+          {rec.terlambat ? <span className="badge late"><AlertTriangle size={11} /> Terlambat</span> : <span className="badge ok"><CheckCircle2 size={11} /> Tepat waktu</span>}
+        </div>
+        <LocBlock label="Masuk" jam={rec.masuk?.jam} loc={rec.masuk} />
+        <LocBlock label="Pulang" jam={rec.pulang?.jam} loc={rec.pulang} />
+      </div>
+    </div>
+  );
+}
 
 /* ---------------- MODAL TAMBAH/EDIT ABSEN ---------------- */
 function AbsenModal({ rec, profiles, onClose, onSave }) {
@@ -885,7 +922,21 @@ function Styles() {
     .search-box input{ flex:1; border:none; outline:none; padding:11px 0; font-size:13.5px; font-family:inherit; background:transparent; color:var(--ink); }
 
     .mon-card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px 14px; display:flex; align-items:center; gap:10px; }
-    .mon-main{ display:flex; align-items:center; gap:11px; flex:1; min-width:0; }
+    .mon-main{ display:flex; align-items:center; gap:11px; flex:1; min-width:0; background:none; border:none; font-family:inherit; text-align:left; padding:0; cursor:default; color:inherit; }
+    .mon-main.tap{ cursor:pointer; }
+    .mon-foto{ width:38px; height:38px; border-radius:12px; object-fit:cover; flex-shrink:0; }
+    .adm-loc{ display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--muted); margin-top:2px; }
+    .det-id{ text-align:center; } .det-id .adm-nama{ font-size:16px; } .det-id .adm-sub{ white-space:normal; }
+    .det-foto{ width:170px; height:170px; border-radius:20px; object-fit:cover; align-self:center; border:1px solid var(--line); }
+    .det-nofoto{ width:170px; height:170px; border-radius:20px; align-self:center; background:var(--card); border:1px dashed var(--line); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:var(--muted); font-size:11.5px; }
+    .det-status{ display:flex; justify-content:center; }
+    .det-sesi{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; display:flex; flex-direction:column; gap:9px; }
+    .det-sesi-head{ display:flex; justify-content:space-between; align-items:center; }
+    .det-sesi-head b{ font-size:17px; font-weight:700; }
+    .det-lbl{ font-size:12.5px; color:var(--muted); font-weight:600; }
+    .maps-btn{ display:flex; align-items:center; gap:7px; background:var(--green-l); color:var(--green-d); text-decoration:none; padding:10px 12px; border-radius:11px; font-size:12.5px; font-weight:600; }
+    .maps-btn:hover{ background:#D8EBE2; }
+    .det-noloc{ display:flex; align-items:center; gap:7px; color:var(--muted); font-size:12px; padding:4px 0; }
     .mon-actions{ display:flex; gap:6px; }
     .adm-ava{ width:38px; height:38px; border-radius:12px; background:var(--green-l); color:var(--green-d); display:grid; place-items:center; font-weight:700; font-size:13px; flex-shrink:0; }
     .adm-info{ flex:1; min-width:0; } .adm-nama{ font-weight:700; font-size:13.5px; } .adm-sub{ font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
