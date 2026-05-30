@@ -217,6 +217,7 @@ function Dashboard({ profile, onLogout }) {
   const [attModal, setAttModal] = useState(null);
   const [profModal, setProfModal] = useState(null);
   const [detailRec, setDetailRec] = useState(null);
+  const [karyawanModal, setKaryawanModal] = useState(false);
 
   const role = profile.role === "admin" ? "admin" : "karyawan";
 
@@ -309,6 +310,20 @@ function Dashboard({ profile, onLogout }) {
     try { const { error } = await supabase.from("profiles").update(patch).eq("id", id); if (error) throw error; await refresh(); }
     catch (e) { setErr(e.message); }
   };
+  const tambahKaryawan = async (payload) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("create-employee", { body: payload });
+      if (error) {
+        let m = error.message;
+        try { const ctx = await error.context?.json?.(); if (ctx?.error) m = ctx.error; } catch (_) {}
+        return m || "Gagal menambah karyawan.";
+      }
+      if (data?.error) return data.error;
+      setKaryawanModal(false);
+      await refresh();
+      return null;
+    } catch (e) { return e.message || "Gagal menambah karyawan."; }
+  };
 
   const navItems = role === "karyawan"
     ? [{ id: "beranda", label: "Absen", icon: Home }, { id: "riwayat", label: "Riwayat", icon: History }, { id: "cuti", label: "Cuti", icon: CalendarDays }]
@@ -341,7 +356,7 @@ function Dashboard({ profile, onLogout }) {
               <AdminMonitoring list={attendance} onAdd={() => setAttModal("new")} onEdit={(r) => setAttModal(r)} onDelete={hapusAbsen} onView={(r) => setDetailRec(r)} />
             )}
             {role === "admin" && tab === "karyawan" && (
-              <AdminKaryawan profiles={profiles} attendance={attendance} onEdit={(p) => setProfModal(p)} />
+              <AdminKaryawan profiles={profiles} attendance={attendance} onEdit={(p) => setProfModal(p)} onAdd={() => setKaryawanModal(true)} />
             )}
             {role === "admin" && tab === "cuti" && <AdminCuti list={leaves} onPutusan={putusanCuti} onDelete={hapusCuti} />}
           </>
@@ -364,6 +379,7 @@ function Dashboard({ profile, onLogout }) {
       {attModal && <AbsenModal rec={attModal === "new" ? null : attModal} profiles={profiles} onClose={() => setAttModal(null)} onSave={simpanAbsen} />}
       {profModal && <ProfilModal prof={profModal} onClose={() => setProfModal(null)} onSave={simpanProfil} />}
       {detailRec && <DetailAbsen rec={detailRec} onClose={() => setDetailRec(null)} />}
+      {karyawanModal && <KaryawanBaruModal onClose={() => setKaryawanModal(false)} onSave={tambahKaryawan} />}
     </>
   );
 }
@@ -733,13 +749,16 @@ function AbsenModal({ rec, profiles, onClose, onSave }) {
 }
 
 /* ---------------- ADMIN: KARYAWAN ---------------- */
-function AdminKaryawan({ profiles, attendance, onEdit }) {
+function AdminKaryawan({ profiles, attendance, onEdit, onAdd }) {
   const [q, setQ] = useState("");
   const list = profiles.filter((p) => !q || (p.nama || "").toLowerCase().includes(q.toLowerCase()));
   const hadirHariIni = (id) => attendance.some((a) => a.userId === id && a.tanggal === todayKey());
   return (
     <div className="page">
-      <h2 className="page-title">Manajemen Karyawan</h2>
+      <div className="page-head">
+        <h2 className="page-title">Manajemen Karyawan</h2>
+        <button className="add-btn" onClick={onAdd}><Plus size={14} /> Tambah</button>
+      </div>
       <div className="search-box"><Search size={15} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nama…" /></div>
       {!list.length ? <Empty icon={Users} teks="Belum ada karyawan." /> : list.map((p) => (
         <div key={p.id} className="mon-card">
@@ -756,7 +775,7 @@ function AdminKaryawan({ profiles, attendance, onEdit }) {
           </div>
         </div>
       ))}
-      <div className="info-note">Karyawan baru bergabung lewat halaman <b>Daftar</b>. Di sini kamu bisa mengubah data & peran (mis. menjadikan Admin).</div>
+      <div className="info-note">Tambahkan karyawan lewat tombol <b>Tambah</b> (akun langsung jadi & bisa login), atau biarkan mereka mendaftar sendiri di halaman <b>Daftar</b>. Ketuk <b>edit</b> untuk ubah data & peran.</div>
     </div>
   );
 }
@@ -784,6 +803,53 @@ function ProfilModal({ prof, onClose, onSave }) {
           <button className={`tipe-opt ${role === "admin" ? "on" : ""}`} onClick={() => setRole("admin")}><ShieldCheck size={16} /> Admin</button>
         </div>
         <button className={`big-btn masuk ${!valid ? "off" : ""}`} disabled={!valid} onClick={() => onSave(prof.id, { nama: nama.trim(), nip, divisi, role })}>Simpan</button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- MODAL KARYAWAN BARU ---------------- */
+function KaryawanBaruModal({ onClose, onSave }) {
+  const [nama, setNama] = useState("");
+  const [nip, setNip] = useState("");
+  const [divisi, setDivisi] = useState("");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [role, setRole] = useState("karyawan");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const valid = nama.trim().length >= 2 && email.includes("@") && pass.length >= 6;
+
+  const submit = async () => {
+    setBusy(true); setMsg("");
+    const err = await onSave({ nama: nama.trim(), nip, divisi, email: email.trim(), password: pass, role });
+    if (err) { setMsg(err); setBusy(false); } // sukses → modal ditutup oleh induk
+  };
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-top"><h3>Tambah Karyawan</h3><button className="x" onClick={onClose}><X size={18} /></button></div>
+        <label className="fld-lbl">Nama lengkap</label>
+        <input className="inp" value={nama} onChange={(e) => setNama(e.target.value)} placeholder="cth. Siti Rahma" />
+        <div className="fld-row">
+          <div><label className="fld-lbl">NIP</label><input className="inp" value={nip} onChange={(e) => setNip(e.target.value)} placeholder="EMP-1011" /></div>
+          <div><label className="fld-lbl">Divisi</label><input className="inp" value={divisi} onChange={(e) => setDivisi(e.target.value)} placeholder="Keuangan" /></div>
+        </div>
+        <label className="fld-lbl">Email (untuk login)</label>
+        <div className="inp-ic"><Mail size={15} /><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" type="email" /></div>
+        <label className="fld-lbl">Kata sandi awal</label>
+        <div className="inp-ic"><Lock size={15} /><input value={pass} onChange={(e) => setPass(e.target.value)} placeholder="min. 6 karakter" type="text" /></div>
+        <label className="fld-lbl">Peran</label>
+        <div className="tipe-grid">
+          <button className={`tipe-opt ${role === "karyawan" ? "on" : ""}`} onClick={() => setRole("karyawan")}><User size={16} /> Karyawan</button>
+          <button className={`tipe-opt ${role === "admin" ? "on" : ""}`} onClick={() => setRole("admin")}><ShieldCheck size={16} /> Admin</button>
+        </div>
+        {msg && <div className="auth-msg">{msg}</div>}
+        <button className={`big-btn masuk ${!valid || busy ? "off" : ""}`} disabled={!valid || busy} onClick={submit}>
+          {busy ? <RefreshCw size={18} className="spin" /> : <Plus size={18} />} Buat Akun Karyawan
+        </button>
+        <div className="req-note">Sampaikan email & kata sandi awal ini ke karyawan agar bisa login.</div>
       </div>
     </div>
   );

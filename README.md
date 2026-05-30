@@ -53,3 +53,27 @@ Karena menambah hak akses admin, jalankan SQL tambahan **satu kali**:
 
 Setelah ini, kamu bisa menjadikan karyawan jadi Admin lewat menu **Karyawan → Edit**,
 tanpa perlu menjalankan SQL `update profiles` lagi.
+
+## Update: Tambah Karyawan dari Panel Admin (Edge Function)
+Agar admin bisa membuat akun karyawan dengan aman, perlu satu Edge Function
+(menyimpan service_role di server, bukan di browser).
+
+Deploy lewat dashboard Supabase (tanpa CLI):
+1. Supabase → menu kiri **Edge Functions** → **Create a function** (atau "Deploy a new function").
+2. Beri nama persis: **`create-employee`**.
+3. Buka file `supabase/functions/create-employee/index.ts` di proyek ini, salin
+   seluruh isinya, tempel ke editor fungsi → **Deploy**.
+4. Buka pengaturan fungsi tsb → **matikan "Verify JWT"** (kita verifikasi admin
+   manual di dalam kode + perlu preflight CORS dari browser).
+
+Tidak perlu set secret apa pun: Supabase otomatis menyediakan `SUPABASE_URL`,
+`SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY` ke Edge Function.
+
+Cara CLI (alternatif, jika punya Supabase CLI):
+```bash
+supabase functions deploy create-employee --no-verify-jwt
+```
+
+Setelah itu: di app, masuk sebagai Admin → **Karyawan → Tambah** → isi data +
+email + kata sandi awal → akun langsung jadi & bisa login. Sampaikan email &
+sandinya ke karyawan terkait.
