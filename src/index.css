@@ -1,0 +1,8 @@
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #ECE9E1;
+  -webkit-tap-highlight-color: transparent;
+}
+#root { min-height: 100dvh; }
