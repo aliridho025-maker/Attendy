@@ -16,6 +16,7 @@ import { supabase, configured } from "./supabaseClient";
    ============================================================ */
 
 const JAM_MASUK = "08:00";
+const JAM_PULANG = "17:00";
 
 const LEAVE_TYPES = [
   { id: "cuti", label: "Cuti Tahunan", icon: Plane },
@@ -44,6 +45,7 @@ function jamKerja(masukJam, pulangJam, now) {
   let diff = end - (mh * 60 + mm); if (diff < 0) diff += 1440;
   return `${pad(Math.floor(diff / 60))}:${pad(diff % 60)}`;
 }
+const pulangCepat = (jam) => !!jam && jam < JAM_PULANG;
 
 /* ---------- map baris DB -> bentuk komponen ---------- */
 const mapAtt = (r) => ({
@@ -416,14 +418,15 @@ function Beranda({ now, nama, absen, onAbsen }) {
   const sudahMasuk = !!absen;
   const sudahPulang = !!(absen && absen.pulang);
   const namaDepan = (nama || "").split(" ")[0] || "Karyawan";
-  let h = now.getHours(); const ap = h >= 12 ? "PM" : "AM"; let h12 = h % 12; if (h12 === 0) h12 = 12;
   const kerja = jamKerja(absen?.masuk?.jam, absen?.pulang?.jam, now);
+  const cepat = sudahPulang && pulangCepat(absen.pulang.jam);
   return (
     <div className="page home">
       <div className="greet-line">{salam(now.getHours())}, <b>{namaDepan} 👋</b></div>
       <div className="home-clock">
-        <div className="hc-time">{h12}:{pad(now.getMinutes())} <span className="hc-ap">{ap}</span></div>
+        <div className="hc-time">{pad(now.getHours())}:{pad(now.getMinutes())}<span className="hc-sec">:{pad(now.getSeconds())}</span></div>
         <div className="hc-date">{fmtTanggal(now.toISOString())}</div>
+        <div className="hc-sched"><Clock size={11} /> Jam kerja {JAM_MASUK} – {JAM_PULANG}</div>
       </div>
 
       {!sudahMasuk && (
@@ -447,6 +450,7 @@ function Beranda({ now, nama, absen, onAbsen }) {
       </div>
 
       {sudahMasuk && absen.terlambat && <div className="late-note"><AlertTriangle size={13} /> Tercatat terlambat (lewat {JAM_MASUK})</div>}
+      {cepat && <div className="late-note"><AlertTriangle size={13} /> Pulang lebih awal (sebelum {JAM_PULANG})</div>}
       <div className="hint"><ScanFace size={12} /> Wajib selfie wajah & lokasi aktif saat absen.</div>
     </div>
   );
@@ -732,6 +736,7 @@ function DetailAbsen({ rec, onClose }) {
           : <div className="det-nofoto"><ImageIcon size={28} /><span>Tanpa foto (input manual)</span></div>}
         <div className="det-status">
           {rec.terlambat ? <span className="badge late"><AlertTriangle size={11} /> Terlambat</span> : <span className="badge ok"><CheckCircle2 size={11} /> Tepat waktu</span>}
+          {pulangCepat(rec.pulang?.jam) && <span className="badge late"><AlertTriangle size={11} /> Pulang cepat</span>}
         </div>
         <LocBlock label="Masuk" jam={rec.masuk?.jam} loc={rec.masuk} />
         <LocBlock label="Pulang" jam={rec.pulang?.jam} loc={rec.pulang} />
@@ -967,7 +972,8 @@ function Styles() {
     .home{ gap:16px; }
     .home-clock{ text-align:center; padding:10px 0 2px; }
     .hc-time{ font-size:52px; font-weight:800; letter-spacing:-2px; line-height:1; color:var(--ink); }
-    .hc-ap{ font-size:22px; font-weight:600; color:var(--muted); letter-spacing:0; }
+    .hc-sec{ font-size:22px; font-weight:600; color:var(--muted); letter-spacing:0; }
+    .hc-sched{ display:inline-flex; align-items:center; gap:5px; margin-top:8px; font-size:11.5px; font-weight:600; color:var(--green-d); background:var(--green-l); padding:4px 10px; border-radius:20px; }
     .hc-date{ font-size:14px; font-weight:700; color:var(--ink2); margin-top:8px; }
 
     .hero-btn{ width:208px; height:208px; align-self:center; border:none; border-radius:42px; color:#fff; cursor:pointer;
@@ -1046,7 +1052,7 @@ function Styles() {
     .det-id{ text-align:center; } .det-id .adm-nama{ font-size:16px; } .det-id .adm-sub{ white-space:normal; }
     .det-foto{ width:170px; height:170px; border-radius:20px; object-fit:cover; align-self:center; border:1px solid var(--line); }
     .det-nofoto{ width:170px; height:170px; border-radius:20px; align-self:center; background:var(--card); border:1px dashed var(--line); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:var(--muted); font-size:11.5px; }
-    .det-status{ display:flex; justify-content:center; }
+    .det-status{ display:flex; justify-content:center; gap:8px; flex-wrap:wrap; }
     .det-sesi{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; display:flex; flex-direction:column; gap:9px; }
     .det-sesi-head{ display:flex; justify-content:space-between; align-items:center; }
     .det-sesi-head b{ font-size:17px; font-weight:700; }
