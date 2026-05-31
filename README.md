@@ -77,3 +77,17 @@ supabase functions deploy create-employee --no-verify-jwt
 Setelah itu: di app, masuk sebagai Admin → **Karyawan → Tambah** → isi data +
 email + kata sandi awal → akun langsung jadi & bisa login. Sampaikan email &
 sandinya ke karyawan terkait.
+
+## Update: Jadikan Aplikasi Android (.apk) via PWABuilder
+Attendy kini adalah PWA (ada manifest.json, ikon, dan service worker).
+
+1. Upload perubahan ke GitHub (termasuk folder `public/` & `index.html`) → tunggu Vercel redeploy (status Ready).
+2. (Opsional) Buka aplikasimu di Chrome Android → menu → "Install app" untuk memasang langsung sebagai PWA tanpa APK.
+3. Untuk file .apk: buka https://www.pwabuilder.com → masukkan URL Vercel-mu → "Start".
+   - PWABuilder akan mengecek manifest/ikon (harusnya lolos).
+   - Pilih platform **Android** → **Generate Package** → unduh.
+   - Untuk dibagikan langsung ke karyawan: pilih paket yang berisi **APK** (signed). Untuk Play Store: gunakan **AAB** + akun Google Play Developer.
+4. Pasang APK di HP (izinkan "install dari sumber tak dikenal" bila diminta).
+
+Catatan: aplikasi membungkus situs live-mu, jadi setiap update di Vercel otomatis
+ikut terbarui di aplikasi. Kamera & lokasi tetap berfungsi (minta izin seperti biasa).
