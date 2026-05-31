@@ -3,10 +3,11 @@ import {
   Clock, MapPin, Camera, CalendarDays, CheckCircle2, XCircle, LogIn, LogOut,
   User, FileText, Home, History, RefreshCw, ShieldCheck, Mail, Lock,
   Plane, Stethoscope, Briefcase, Hourglass, AlertTriangle, X,
-  Image as ImageIcon, Users, ClipboardList, Pencil, Trash2, Plus, Search, ScanFace, Fingerprint, Timer
+  Image as ImageIcon, Users, ClipboardList, Pencil, Trash2, Plus, Search, ScanFace, Fingerprint, Timer, Download
 } from "lucide-react";
 import * as blazeface from "@tensorflow-models/blazeface";
 import "@tensorflow/tfjs";
+import * as XLSX from "xlsx";
 import { supabase, configured } from "./supabaseClient";
 
 /* ============================================================
@@ -325,6 +326,32 @@ function Dashboard({ profile, onLogout }) {
     } catch (e) { return e.message || "Gagal menambah karyawan."; }
   };
 
+  const exportExcel = () => {
+    try {
+      const attRows = [...attendance]
+        .sort((a, b) => (a.tanggal < b.tanggal ? 1 : -1))
+        .map((a) => ({
+          Nama: a.nama || "", NIP: a.nip || "", Divisi: a.divisi || "",
+          Tanggal: a.tanggal,
+          "Jam Masuk": a.masuk?.jam || "",
+          "Jam Pulang": a.pulang?.jam || "",
+          "Jam Kerja": a.pulang ? jamKerja(a.masuk?.jam, a.pulang?.jam, new Date()) : "",
+          Terlambat: a.terlambat ? "Ya" : "Tidak",
+          "Lokasi Masuk": (a.masuk?.lat != null) ? `${a.masuk.lat}, ${a.masuk.lng}` : "",
+        }));
+      const leaveRows = leaves.map((l) => ({
+        Nama: l.nama || "",
+        Jenis: (LEAVE_TYPES.find((t) => t.id === l.tipe) || {}).label || l.tipe,
+        "Tgl Mulai": l.mulai, "Tgl Selesai": l.selesai,
+        Alasan: l.alasan || "", Status: l.status,
+      }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(attRows.length ? attRows : [{ Info: "Belum ada data" }]), "Absensi");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leaveRows.length ? leaveRows : [{ Info: "Belum ada data" }]), "Cuti");
+      XLSX.writeFile(wb, `attendy_export_${todayKey()}.xlsx`);
+    } catch (e) { setErr(e.message || "Gagal membuat file Excel."); }
+  };
+
   const navItems = role === "karyawan"
     ? [{ id: "beranda", label: "Absen", icon: Home }, { id: "riwayat", label: "Riwayat", icon: History }, { id: "cuti", label: "Cuti", icon: CalendarDays }]
     : [{ id: "beranda", label: "Monitoring", icon: ClipboardList }, { id: "karyawan", label: "Karyawan", icon: Users }, { id: "cuti", label: "Cuti", icon: CalendarDays }];
@@ -353,7 +380,7 @@ function Dashboard({ profile, onLogout }) {
             {role === "karyawan" && tab === "cuti" && <CutiKaryawan list={leaves.filter((l) => l.userId === profile.id)} onAjukan={() => setShowCuti(true)} />}
 
             {role === "admin" && tab === "beranda" && (
-              <AdminMonitoring list={attendance} onAdd={() => setAttModal("new")} onEdit={(r) => setAttModal(r)} onDelete={hapusAbsen} onView={(r) => setDetailRec(r)} />
+              <AdminMonitoring list={attendance} onAdd={() => setAttModal("new")} onEdit={(r) => setAttModal(r)} onDelete={hapusAbsen} onView={(r) => setDetailRec(r)} onExport={exportExcel} />
             )}
             {role === "admin" && tab === "karyawan" && (
               <AdminKaryawan profiles={profiles} attendance={attendance} onEdit={(p) => setProfModal(p)} onAdd={() => setKaryawanModal(true)} />
@@ -636,7 +663,7 @@ function CutiForm({ onClose, onSubmit }) {
 }
 
 /* ---------------- ADMIN: MONITORING ---------------- */
-function AdminMonitoring({ list, onAdd, onEdit, onDelete, onView }) {
+function AdminMonitoring({ list, onAdd, onEdit, onDelete, onView, onExport }) {
   const [tgl, setTgl] = useState(todayKey());
   const [q, setQ] = useState("");
   const dateRecs = list.filter((a) => a.tanggal === tgl);
@@ -645,7 +672,10 @@ function AdminMonitoring({ list, onAdd, onEdit, onDelete, onView }) {
     <div className="page">
       <div className="page-head">
         <h2 className="page-title">Monitoring</h2>
-        <button className="add-btn" onClick={onAdd}><Plus size={14} /> Tambah</button>
+        <div className="head-btns">
+          <button className="ghost-btn" onClick={onExport}><Download size={14} /> Export</button>
+          <button className="add-btn" onClick={onAdd}><Plus size={14} /> Tambah</button>
+        </div>
       </div>
       <input type="date" className="inp" value={tgl} onChange={(e) => setTgl(e.target.value)} />
       <div className="stat-row">
@@ -928,6 +958,9 @@ function Styles() {
     .page-title{ font-size:20px; font-weight:700; letter-spacing:-.3px; }
     .page-head{ display:flex; justify-content:space-between; align-items:center; }
     .add-btn{ display:flex; align-items:center; gap:4px; background:var(--green); color:#fff; border:none; padding:8px 14px; border-radius:20px; font-weight:600; font-size:13px; cursor:pointer; font-family:inherit; }
+    .head-btns{ display:flex; gap:8px; }
+    .ghost-btn{ display:flex; align-items:center; gap:4px; background:var(--card); color:var(--ink2); border:1px solid var(--line); padding:8px 12px; border-radius:20px; font-weight:600; font-size:13px; cursor:pointer; font-family:inherit; }
+    .ghost-btn:hover{ background:var(--green-l); color:var(--green-d); border-color:transparent; }
 
     .greet-line{ font-size:14.5px; color:var(--muted); font-weight:500; }
     .greet-line b{ color:var(--ink); font-weight:700; }
