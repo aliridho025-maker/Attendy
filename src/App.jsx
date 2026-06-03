@@ -55,7 +55,7 @@ const mapAtt = (r) => ({
   id: r.id, userId: r.user_id, nama: r.nama, nip: r.nip, divisi: r.divisi, tanggal: r.tanggal,
   masuk: r.masuk_jam ? { jam: r.masuk_jam, lat: r.masuk_lat, lng: r.masuk_lng } : null,
   pulang: r.pulang_jam ? { jam: r.pulang_jam, lat: r.pulang_lat, lng: r.pulang_lng } : null,
-  terlambat: r.terlambat, foto: r.foto,
+  terlambat: r.terlambat, foto: r.foto, fotoPulang: r.foto_pulang,
 });
 const mapLeave = (r) => ({
   id: r.id, userId: r.user_id, nama: r.nama, tipe: r.tipe, mulai: r.mulai, selesai: r.selesai,
@@ -264,7 +264,7 @@ function Dashboard({ profile, onLogout }) {
         if (error) throw error;
       } else if (absenHariIni) {
         const { error } = await supabase.from("attendance").update({
-          pulang_jam: fmtJam(d), pulang_lat: lokasi.lat, pulang_lng: lokasi.lng,
+          pulang_jam: fmtJam(d), pulang_lat: lokasi.lat, pulang_lng: lokasi.lng, foto_pulang: foto,
         }).eq("id", absenHariIni.id);
         if (error) throw error;
       }
@@ -572,43 +572,37 @@ function CaptureModal({ mode, onClose, onSubmit }) {
 
 /* ---------------- RIWAYAT ---------------- */
 function Riwayat({ list }) {
-  const masuk = list;
-  const keluar = list.filter((a) => a.pulang);
+  const [zoom, setZoom] = useState(null);
+  if (!list.length) return <Empty icon={History} teks="Belum ada riwayat absensi." />;
   return (
     <div className="page">
       <h2 className="page-title">Riwayat Absensi</h2>
-
-      <div className="rw-sec">
-        <div className="rw-sec-head in"><LogIn size={15} /> Absen Masuk</div>
-        {!masuk.length ? <div className="rw-empty">Belum ada data.</div> : (
-          <>
-            <div className="rw-thead"><span>Tanggal</span><span>Jam</span><span>Status</span></div>
-            {masuk.map((a) => (
-              <div key={a.id} className="rw-row">
-                <span className="rw-date2"><CalendarDays size={13} /> {fmtTanggalPendek(a.tanggal)}</span>
-                <span className="rw-jam">{a.masuk?.jam || "--:--"}</span>
-                <span>{a.terlambat ? <span className="badge late">Telat</span> : <span className="badge ok">Tepat</span>}</span>
-              </div>
+      <div className="rw-note">Geser tabel ke samping untuk melihat semua kolom · ketuk foto untuk memperbesar.</div>
+      <div className="rw-scroll">
+        <table className="rw-table">
+          <thead>
+            <tr>
+              <th>Foto Masuk</th><th>Tgl Masuk</th><th>Jam</th><th>Status</th>
+              <th className="sep">Foto Keluar</th><th>Tgl Keluar</th><th>Jam</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((a) => (
+              <tr key={a.id}>
+                <td>{a.foto ? <img src={a.foto} alt="masuk" className="rw-th" onClick={() => setZoom(a.foto)} /> : <span className="rw-dash">—</span>}</td>
+                <td className="rw-td-date">{fmtTanggalPendek(a.tanggal)}</td>
+                <td className="rw-td-jam">{a.masuk?.jam || "--:--"}</td>
+                <td>{a.terlambat ? <span className="badge late">Telat</span> : <span className="badge ok">Tepat</span>}</td>
+                <td className="sep">{a.fotoPulang ? <img src={a.fotoPulang} alt="keluar" className="rw-th" onClick={() => setZoom(a.fotoPulang)} /> : <span className="rw-dash">—</span>}</td>
+                <td className="rw-td-date">{a.pulang ? fmtTanggalPendek(a.tanggal) : <span className="rw-dash">—</span>}</td>
+                <td className="rw-td-jam">{a.pulang?.jam || "--:--"}</td>
+                <td>{a.pulang ? (pulangCepat(a.pulang.jam) ? <span className="badge late">Cepat</span> : <span className="badge ok">Normal</span>) : <span className="rw-dash">—</span>}</td>
+              </tr>
             ))}
-          </>
-        )}
+          </tbody>
+        </table>
       </div>
-
-      <div className="rw-sec">
-        <div className="rw-sec-head out"><LogOut size={15} /> Absen Keluar</div>
-        {!keluar.length ? <div className="rw-empty">Belum ada data.</div> : (
-          <>
-            <div className="rw-thead"><span>Tanggal</span><span>Jam</span><span>Status</span></div>
-            {keluar.map((a) => (
-              <div key={a.id} className="rw-row">
-                <span className="rw-date2"><CalendarDays size={13} /> {fmtTanggalPendek(a.tanggal)}</span>
-                <span className="rw-jam">{a.pulang?.jam || "--:--"}</span>
-                <span>{pulangCepat(a.pulang?.jam) ? <span className="badge late">Cepat</span> : <span className="badge ok">Normal</span>}</span>
-              </div>
-            ))}
-          </>
-        )}
-      </div>
+      {zoom && <div className="rw-zoom" onClick={() => setZoom(null)}><img src={zoom} alt="selfie" /></div>}
     </div>
   );
 }
@@ -1031,17 +1025,19 @@ function Styles() {
     .done-card{ display:flex; align-items:center; gap:10px; background:var(--green-l); color:var(--green-d); padding:16px; border-radius:18px; font-weight:600; font-size:14px; }
     .hint{ display:flex; align-items:center; justify-content:center; gap:6px; color:var(--muted); font-size:11.5px; margin-top:2px; }
 
-    .rw-sec{ background:var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden; }
-    .rw-sec-head{ display:flex; align-items:center; gap:8px; padding:13px 15px; font-weight:700; font-size:14px; border-bottom:1px solid var(--line); }
-    .rw-sec-head.in{ color:var(--green-d); }
-    .rw-sec-head.out{ color:var(--gold-d); }
-    .rw-thead{ display:grid; grid-template-columns:1fr auto auto; gap:12px; padding:8px 15px; font-size:10.5px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); background:#FAFBFC; }
-    .rw-row{ display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:center; padding:11px 15px; border-top:1px solid var(--line); }
-    .rw-thead span:nth-child(2), .rw-row > :nth-child(2),
-    .rw-thead span:nth-child(3), .rw-row > :nth-child(3){ text-align:right; justify-self:end; }
-    .rw-date2{ display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--ink2); }
-    .rw-jam{ font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; }
-    .rw-empty{ padding:18px 15px; text-align:center; color:var(--muted); font-size:12.5px; }
+    .rw-note{ font-size:11.5px; color:var(--muted); margin-bottom:-4px; }
+    .rw-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:16px; background:var(--card); }
+    .rw-table{ border-collapse:collapse; width:max-content; min-width:100%; font-size:12px; }
+    .rw-table th{ background:#FAFBFC; color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; padding:9px 10px; text-align:left; white-space:nowrap; border-bottom:1px solid var(--line); }
+    .rw-table td{ padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; vertical-align:middle; }
+    .rw-table tr:last-child td{ border-bottom:none; }
+    .rw-table th.sep, .rw-table td.sep{ border-left:2px solid var(--green-l); }
+    .rw-th{ width:38px; height:38px; border-radius:9px; object-fit:cover; cursor:pointer; display:block; }
+    .rw-td-date{ font-weight:600; color:var(--ink2); }
+    .rw-td-jam{ font-weight:800; font-variant-numeric:tabular-nums; }
+    .rw-dash{ color:#C7CDD4; }
+    .rw-zoom{ position:fixed; inset:0; background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; z-index:100; padding:24px; }
+    .rw-zoom img{ max-width:100%; max-height:100%; border-radius:14px; }
 
     .ct-card{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:15px; display:flex; flex-direction:column; gap:9px; }
     .ct-top{ display:flex; justify-content:space-between; align-items:center; }
