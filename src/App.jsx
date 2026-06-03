@@ -572,23 +572,43 @@ function CaptureModal({ mode, onClose, onSubmit }) {
 
 /* ---------------- RIWAYAT ---------------- */
 function Riwayat({ list }) {
-  if (!list.length) return <Empty icon={History} teks="Belum ada riwayat absensi." />;
+  const masuk = list;
+  const keluar = list.filter((a) => a.pulang);
   return (
     <div className="page">
       <h2 className="page-title">Riwayat Absensi</h2>
-      {list.map((a) => (
-        <div key={a.id} className="rw-card">
-          <div className="rw-date"><CalendarDays size={14} /> {fmtTanggalPendek(a.tanggal)}</div>
-          <div className="rw-body">
-            {a.foto && <img src={a.foto} alt="" className="rw-foto" />}
-            <div className="rw-times">
-              <div><span className="rw-lbl">Masuk</span><b>{a.masuk?.jam || "--:--"}</b></div>
-              <div><span className="rw-lbl">Pulang</span><b>{a.pulang?.jam || "--:--"}</b></div>
-            </div>
-            {a.terlambat ? <span className="badge late"><AlertTriangle size={11} /> Terlambat</span> : <span className="badge ok"><CheckCircle2 size={11} /> Tepat waktu</span>}
-          </div>
-        </div>
-      ))}
+
+      <div className="rw-sec">
+        <div className="rw-sec-head in"><LogIn size={15} /> Absen Masuk</div>
+        {!masuk.length ? <div className="rw-empty">Belum ada data.</div> : (
+          <>
+            <div className="rw-thead"><span>Tanggal</span><span>Jam</span><span>Status</span></div>
+            {masuk.map((a) => (
+              <div key={a.id} className="rw-row">
+                <span className="rw-date2"><CalendarDays size={13} /> {fmtTanggalPendek(a.tanggal)}</span>
+                <span className="rw-jam">{a.masuk?.jam || "--:--"}</span>
+                <span>{a.terlambat ? <span className="badge late">Telat</span> : <span className="badge ok">Tepat</span>}</span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      <div className="rw-sec">
+        <div className="rw-sec-head out"><LogOut size={15} /> Absen Keluar</div>
+        {!keluar.length ? <div className="rw-empty">Belum ada data.</div> : (
+          <>
+            <div className="rw-thead"><span>Tanggal</span><span>Jam</span><span>Status</span></div>
+            {keluar.map((a) => (
+              <div key={a.id} className="rw-row">
+                <span className="rw-date2"><CalendarDays size={13} /> {fmtTanggalPendek(a.tanggal)}</span>
+                <span className="rw-jam">{a.pulang?.jam || "--:--"}</span>
+                <span>{pulangCepat(a.pulang?.jam) ? <span className="badge late">Cepat</span> : <span className="badge ok">Normal</span>}</span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -1011,13 +1031,17 @@ function Styles() {
     .done-card{ display:flex; align-items:center; gap:10px; background:var(--green-l); color:var(--green-d); padding:16px; border-radius:18px; font-weight:600; font-size:14px; }
     .hint{ display:flex; align-items:center; justify-content:center; gap:6px; color:var(--muted); font-size:11.5px; margin-top:2px; }
 
-    .rw-card{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:14px; }
-    .rw-date{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); font-weight:600; margin-bottom:10px; }
-    .rw-body{ display:flex; align-items:center; gap:12px; }
-    .rw-foto{ width:48px; height:48px; border-radius:12px; object-fit:cover; }
-    .rw-times{ display:flex; gap:20px; flex:1; }
-    .rw-times b{ font-size:18px; display:block; font-weight:700; }
-    .rw-lbl{ font-size:11px; color:var(--muted); display:block; }
+    .rw-sec{ background:var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden; }
+    .rw-sec-head{ display:flex; align-items:center; gap:8px; padding:13px 15px; font-weight:700; font-size:14px; border-bottom:1px solid var(--line); }
+    .rw-sec-head.in{ color:var(--green-d); }
+    .rw-sec-head.out{ color:var(--gold-d); }
+    .rw-thead{ display:grid; grid-template-columns:1fr auto auto; gap:12px; padding:8px 15px; font-size:10.5px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); background:#FAFBFC; }
+    .rw-row{ display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:center; padding:11px 15px; border-top:1px solid var(--line); }
+    .rw-thead span:nth-child(2), .rw-row > :nth-child(2),
+    .rw-thead span:nth-child(3), .rw-row > :nth-child(3){ text-align:right; justify-self:end; }
+    .rw-date2{ display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--ink2); }
+    .rw-jam{ font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; }
+    .rw-empty{ padding:18px 15px; text-align:center; color:var(--muted); font-size:12.5px; }
 
     .ct-card{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:15px; display:flex; flex-direction:column; gap:9px; }
     .ct-top{ display:flex; justify-content:space-between; align-items:center; }
