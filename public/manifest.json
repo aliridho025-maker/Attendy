@@ -1,13 +1,13 @@
 {
-  "name": "Attendy — Absensi Perusahaan",
-  "short_name": "Attendy",
-  "description": "Aplikasi absensi perusahaan: clock in/out dengan selfie & lokasi, cuti/izin, dan panel admin.",
+  "name": "Casa Royal Indonesia — Absensi",
+  "short_name": "Casa Royal",
+  "description": "Aplikasi absensi karyawan Casa Royal Indonesia: clock in/out dengan selfie & lokasi, cuti/izin, dan panel admin.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F5F6F8",
-  "theme_color": "#10A88F",
+  "theme_color": "#14643F",
   "lang": "id",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

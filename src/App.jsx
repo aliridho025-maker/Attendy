@@ -18,6 +18,9 @@ import { supabase, configured } from "./supabaseClient";
 const JAM_MASUK = "08:00";
 const JAM_PULANG = "17:00";
 
+// ====== Identitas perusahaan (mudah diganti) ======
+const COMPANY = { nama: "Casa Royal", sub: "Indonesia", logo: "/logo.png" };
+
 const LEAVE_TYPES = [
   { id: "cuti", label: "Cuti Tahunan", icon: Plane },
   { id: "izin", label: "Izin", icon: FileText },
@@ -174,8 +177,9 @@ function AuthScreen() {
 
   return (
     <div className="auth-wrap">
-      <div className="auth-brand">Attend<span className="dot">y</span></div>
-      <div className="auth-sub">Absensi Perusahaan</div>
+      <img className="auth-logo" src={COMPANY.logo} alt={COMPANY.nama} />
+      <div className="auth-brand">{COMPANY.nama}</div>
+      <div className="auth-sub">{COMPANY.sub} — Absensi Perusahaan</div>
       <div className="auth-card">
         <div className="auth-tabs">
           <button className={mode === "login" ? "on" : ""} onClick={() => { setMode("login"); setMsg(""); }}>Masuk</button>
@@ -362,8 +366,8 @@ function Dashboard({ profile, onLogout }) {
     <>
       <header className="hdr">
         <div className="brand-wrap">
-          <div className="logo-mark"><Fingerprint size={20} /></div>
-          <div className="brand-txt"><b>Attendy</b><span>Attendance</span></div>
+          <img className="logo-img" src={COMPANY.logo} alt={COMPANY.nama} />
+          <div className="brand-txt"><b>{COMPANY.nama}</b><span>{COMPANY.sub}</span></div>
         </div>
         <div className="hdr-right">
           <span className="role-pill">{role === "admin" ? <><ShieldCheck size={12} /> Admin</> : <><User size={12} /> Karyawan</>}</span>
@@ -928,7 +932,8 @@ function Styles() {
     :root{
       --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","SF Pro Icons","Helvetica Neue",Helvetica,Arial,sans-serif;
       --bg:#F5F6F8; --card:#FFFFFF; --ink:#1A1D21; --ink2:#3A4046; --muted:#959BA5; --line:#ECEEF1;
-      --green:#10A88F; --green-d:#0C8A75; --green-l:#E4F5F1;
+      --green:#15663F; --green-d:#0C4A2E; --green-l:#E7F1EC;
+      --gold:#C49A3F; --gold-d:#8A6420;
       --amber:#D08A1E; --amber-l:#FBF1DE; --red:#E1493D; --red-l:#FCEBE9;
     }
     .stage{ font-family:var(--font); color:var(--ink); min-height:100dvh; display:flex; -webkit-font-smoothing:antialiased; }
@@ -941,16 +946,16 @@ function Styles() {
       .screen{ min-height:auto; height:100%; border-radius:36px; }
     }
     .screen::before{ content:""; position:absolute; top:-60px; right:-40px; width:200px; height:200px; border-radius:50%;
-      background:radial-gradient(circle, rgba(16,168,143,.10), transparent 70%); pointer-events:none; }
+      background:radial-gradient(circle, rgba(21,102,63,.10), transparent 70%); pointer-events:none; }
     .hdr{ position:relative; z-index:1; background:var(--card); color:var(--ink); padding:max(16px,env(safe-area-inset-top)) 18px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
     @media (min-width:600px){ .hdr{ padding:18px 18px 16px; } }
     .brand-wrap{ display:flex; align-items:center; gap:10px; }
     .logo-mark{ width:38px; height:38px; border-radius:12px; background:var(--green-l); color:var(--green-d); display:grid; place-items:center; }
-    .brand-txt b{ display:block; font-size:18px; font-weight:800; letter-spacing:-.4px; line-height:1.05; }
+    .brand-txt b{ display:block; font-size:18px; font-weight:800; letter-spacing:-.4px; line-height:1.05; color:var(--green-d); }
     .brand-txt span{ font-size:9.5px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); }
     .hdr-right{ display:flex; align-items:center; gap:8px; }
     .role-pill{ display:flex; align-items:center; gap:4px; background:var(--green-l); color:var(--green-d); padding:5px 10px; border-radius:30px; font-size:11px; font-weight:600; }
-    .avatar{ width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,var(--green),#3B82F6); color:#fff; display:grid; place-items:center; font-weight:700; font-size:13px; }
+    .avatar{ width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#1A7A4D,var(--green-d)); color:#fff; display:grid; place-items:center; font-weight:700; font-size:13px; }
     .logout-btn{ background:var(--bg); border:1px solid var(--line); color:var(--muted); width:34px; height:34px; border-radius:11px; display:grid; place-items:center; cursor:pointer; }
     .logout-btn:hover{ color:var(--red); background:var(--red-l); border-color:transparent; }
 
@@ -979,8 +984,8 @@ function Styles() {
     .hero-btn{ width:208px; height:208px; align-self:center; border:none; border-radius:42px; color:#fff; cursor:pointer;
       display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; margin:6px auto 2px; font-family:inherit; transition:transform .15s; }
     .hero-btn:active{ transform:scale(.97); }
-    .hero-btn.in{ background:linear-gradient(155deg,#1EC8AC 0%,#3B82F6 100%); box-shadow:0 24px 46px -16px rgba(30,150,200,.7); }
-    .hero-btn.out{ background:linear-gradient(155deg,#FB5C7D 0%,#7C5CFF 100%); box-shadow:0 24px 46px -16px rgba(150,80,210,.6); }
+    .hero-btn.in{ background:linear-gradient(155deg,#2E9E63 0%,#0E4A2D 100%); box-shadow:0 24px 46px -16px rgba(21,102,63,.7); }
+    .hero-btn.out{ background:linear-gradient(155deg,#CDA040 0%,#8A6420 100%); box-shadow:0 24px 46px -16px rgba(160,120,40,.6); }
     .hero-ring{ width:68px; height:68px; border-radius:50%; border:2.5px solid rgba(255,255,255,.75); display:grid; place-items:center; }
     .hero-label{ font-size:18px; font-weight:700; letter-spacing:-.2px; }
     .hero-done{ align-self:center; width:208px; height:208px; border-radius:42px; background:var(--green-l); color:var(--green-d);
@@ -1125,7 +1130,9 @@ function Styles() {
     .spin{ animation:spin 1s linear infinite; }
 
     .auth-wrap{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:28px 22px; gap:4px; min-height:100dvh; }
-    .auth-brand{ font-weight:800; font-size:38px; color:var(--green-d); letter-spacing:-1.2px; }
+    .logo-img{ height:36px; width:auto; display:block; }
+    .auth-logo{ height:86px; width:auto; margin-bottom:8px; }
+    .auth-brand{ font-weight:800; font-size:34px; color:var(--green-d); letter-spacing:-1px; }
     .auth-brand .dot{ color:var(--green); }
     .auth-sub{ color:var(--muted); font-size:13.5px; margin-bottom:18px; }
     .auth-card{ width:100%; max-width:360px; background:var(--card); border:1px solid var(--line); border-radius:22px; padding:20px; display:flex; flex-direction:column; gap:10px; box-shadow:0 18px 40px -24px rgba(20,40,30,.35); }
